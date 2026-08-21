@@ -1,4 +1,4 @@
-# Kemory Continuity Protocol
+# Kemory Continuity Skill
 
 A portable AI-agent skill for using **Kemory** as a durable memory and continuity layer across:
 
