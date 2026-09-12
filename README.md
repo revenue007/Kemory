@@ -1,234 +1,111 @@
-# Kemory Continuity Skill
-
-A portable AI-agent skill for using **Kemory** as a durable memory and continuity layer across:
-
-- repeated sessions in the same agent;
-- handoffs between different agents;
-- project/customer/topic workflows;
-- uploaded documents and artifacts;
-- durable decisions, preferences, constraints, and open loops.
-
-The goal is simple:
-
-> Start work in one AI agent, continue in another, and preserve enough state that the next session does not restart from scratch.
-
-This skill is intended for agents such as Manus, Claude, ChatGPT/OpenAI, Gemini, Perplexity, and other agents that can use Kemory through MCP, REST, or a platform-specific adapter.
-
----
-
-## Repository contents
-
-```text
-.
-├── SKILL.md                         # Canonical skill instructions
-├── README.md                        # Overview and setup notes
-├── matters.md                       # Design rationale and implementation matters
-├── adapters/
-│   ├── README.md                    # Adapter design rules
-│   ├── manus.md                     # Manus adapter notes
-│   ├── claude.md                    # Claude adapter notes
-│   ├── openai-chatgpt.md            # OpenAI / ChatGPT adapter notes
-│   ├── gemini.md                    # Gemini adapter notes
-│   └── perplexity.md                # Perplexity adapter notes
-└── examples/
-    ├── handoff-checkpoint.md        # Reusable checkpoint template
-    ├── memory-candidate.md          # Reusable memory candidate template
-    └── session-start.md             # Session hydration template
-```
-
----
-
-## Core idea
-
-The skill is not a generic “save memory” prompt. It is a **continuity protocol**.
-
-Agents should follow this loop:
-
-```text
-hydrate → work → checkpoint → write/propose memory → handoff/resume
-```
-
-This supports both:
-
-1. **Inter-session continuity, same agent**
-   - Example: start in Manus today, continue in a new Manus session tomorrow.
-
-2. **Inter-agent continuity**
-   - Example: start in Manus, continue in Claude, then use ChatGPT to turn the result into GTM copy.
-
----
-
-## Permission-derived behavior
-
-The most important rule:
-
-> Kemory behavior is permission-derived, not platform-derived.
-
-Do not assume Manus is read-only, Claude is read/write, or Perplexity is candidate-only. The same platform can have different permissions depending on the agent identity, namespace, org, team, resource, or action.
-
-At runtime, the agent should determine effective permissions for actions such as:
-
-- memory read;
-- memory write/update/delete;
-- artifact read/write;
-- checkpoint read/write;
-- namespace move/merge;
-- visibility broadening.
-
-If write access is absent or uncertain, the agent should produce structured memory/checkpoint candidates instead of attempting writes.
-
----
-
-## Recommended installation
-
-### 1. Add the core skill
-
-Use `SKILL.md` as the canonical skill body in the target agent or skill system.
-
-Recommended skill name:
-
-```text
-kemory-continuity-protocol
-```
-
-Recommended description:
-
-```text
-Use when an AI agent needs Kemory for persistent memory, same-agent inter-session continuity, cross-agent handoff, session resume, uploaded document continuity, or durable memory writeback across Manus, Claude, ChatGPT/OpenAI, Gemini, Perplexity, and other agents. Behavior is permission-derived at runtime between the specific agent identity and Kemory; platform adapters define mechanics only.
-```
-
-### 2. Add platform adapters only if needed
-
-The files in `adapters/` are intentionally thin. They should describe platform mechanics only:
-
-- how to load the skill;
-- how to call Kemory MCP or REST;
-- how to pass `namespace_hint` and `continuity_session_id`;
-- how to handle uploads;
-- how to format fallback handoff output when tools are unavailable.
-
-Adapters must not redefine memory policy or assume authority from platform identity.
-
-### 3. Standardize namespace and session fields
-
-Every agent should preserve these fields when possible:
-
-```text
-namespace_hint
-continuity_session_id
-source_platform
-source_agent_id
-source_platform_session_id
-permissions_mode
-task_objective
-artifact_ids
-visibility
-created_at
-expires_at / ttl_seconds
-```
-
-The most important are:
-
-```text
-namespace_hint
-continuity_session_id
-source_platform
-```
-
----
-
-## Operating model
-
-### Start of session
-
-1. Identify whether this is a new continuity session or a continuation.
-2. Set or infer `namespace_hint`.
-3. Set or infer `continuity_session_id`.
-4. Determine effective Kemory permissions.
-5. Retrieve authorized context.
-6. Continue from the latest checkpoint, not from scratch.
-
-### During session
-
-1. Keep the same namespace and continuity session unless the task changes.
-2. Track decisions, assumptions, constraints, sources, artifacts, and open loops.
-3. Treat uploaded documents as artifacts first, not as giant memories.
-4. Preserve provenance.
-
-### End of session
-
-1. Create or propose a handoff checkpoint.
-2. Store durable memories only if write access exists.
-3. Produce memory candidates if write access is absent or uncertain.
-4. Include recommended next action.
-
----
-
-## Examples
-
-### Same-agent continuation
-
-```text
-Continue the Kemory skill work from yesterday.
-```
-
-Expected behavior:
-
-```text
-1. Infer likely namespace.
-2. Find latest checkpoint.
-3. Retrieve supporting context.
-4. Briefly restate recovered state.
-5. Continue work.
-6. Save/propose updated checkpoint.
-```
-
-### Cross-agent continuation
-
-```text
-Continue in Claude what I started in Manus.
-```
-
-Expected behavior:
-
-```text
-1. Retrieve latest Manus checkpoint for the continuity session.
-2. Retrieve supporting memories and artifacts.
-3. Continue from current_state and recommended_next_action.
-4. Save/propose a new checkpoint with Claude as source_platform.
-```
-
-### Read-only fallback
-
-```text
-Use Kemory context and draft the GTM page.
-```
-
-Expected behavior:
-
-```text
-1. Retrieve authorized Kemory context.
-2. Draft the requested output.
-3. Do not write memory if write access is unavailable.
-4. Produce memory candidates and a checkpoint candidate.
-```
-
----
-
-## Non-goals
-
-This skill should not be used to:
-
-- bypass Kemory permissions;
-- replace the gatekeeper model;
-- merge namespaces automatically;
-- store raw documents as ordinary memories;
-- memorize every chat turn;
-- use platform identity as the primary namespace;
-- broaden visibility without explicit authorization.
-
----
-
-## License
-
-Choose the license that matches your intended distribution. If this is intended to be public/open-source, add a `LICENSE` file before publishing.
+Kemory — Persistent Memory Instructions
+Kemory is the persistent, permission-aware memory layer for this project. Use its kemory_* MCP tools proactively so that useful context survives across sessions.
+
+Session startup
+At the beginning of a new session or substantial task:
+
+Use kemory_list_namespaces to understand the available memory structure when it is not already known.
+Use kemory_get_user_context to load relevant user preferences and cross-project context.
+Use kemory_recall_memory for the current project, feature, task, customer, or topic before making plans or assumptions.
+If the task concerns an existing decision, implementation, requirement, bug, person, or prior discussion, search Kemory before answering.
+Treat recalled memories as context, not unquestionable truth. Reconcile them with the repository, current user instructions, and more recent evidence.
+Do not wait for the user to explicitly say “check memory” when prior context could materially improve the answer.
+
+Choosing the right retrieval tool
+Use:
+
+kemory_recall_memory as the default search across namespaces.
+kemory_get_context when a synthesized overview of a topic is more useful than individual results.
+kemory_find_similar when looking for semantically related material that may use different wording.
+kemory_get_raw when exact source text, wording, code, requirements, or unsummarized evidence is needed.
+kemory_get_compressed when the same material is needed at raw, key-fact, or concept-synthesis levels.
+kemory_get_history when provenance, changes, authorship, or the evolution of a memory matters.
+kemory_get_session_context to review what the current session has already read or written.
+kemory_rehydrate_session_sources when source material behind earlier session memories is required.
+Prefer targeted retrieval over loading large amounts of unrelated memory.
+
+When to write memory
+Use kemory_store_memory when information is durable and likely to improve future work, including:
+
+Explicit user preferences
+Project goals and stable requirements
+Architecture and implementation decisions
+Important constraints and non-obvious conventions
+Decisions with their reasoning and trade-offs
+Confirmed facts about customers, products, systems, or workflows
+Resolved incidents and reusable lessons
+Important corrections to earlier assumptions
+Open questions or commitments that must survive the session
+A useful memory should normally capture:
+
+What was decided or learned
+Why it matters
+Relevant context or reasoning
+Date or temporal context when important
+Project, customer, repository, or topic
+Source or provenance when available
+Whether it is confirmed, tentative, superseded, or time-sensitive
+Store concise, self-contained memories. Preserve enough context that a future session can understand them without reading the current conversation.
+
+What not to store
+Do not store:
+
+Passwords, private keys, API keys, access tokens, cookies, or other credentials
+Temporary command output or routine progress updates
+Speculation presented as fact
+Large duplicated passages when a concise durable memory is sufficient
+Information that is already obvious and authoritative in the repository
+Sensitive personal information unless the user explicitly requests it and storage is appropriate
+Never place secrets in Kemory, source control, CLAUDE.md, logs, or generated documentation.
+
+Namespace conventions
+Prefer clear, stable namespaces such as:
+
+user:preferences
+project:<project-name>
+decisions:<project-name>
+customer:<customer-name>
+product:<product-name>
+tribal:<team-or-domain>
+research:<topic>
+Use the narrowest appropriate namespace by default. Do not assume that a wider namespace is safe.
+
+Memories are private to the user unless explicitly shared or promoted. Before using kemory_promote_memory, use kemory_check_access when visibility is uncertain and explain the intended wider audience.
+
+Updating and correcting memory
+kemory_store_memory does not silently overwrite existing memories.
+
+When new information changes an earlier conclusion:
+
+Retrieve the relevant existing memory.
+Record the correction or superseding decision with clear status and date.
+Preserve the reason for the change.
+Use kemory_get_history when the evolution of the information matters.
+Do not quietly treat an outdated memory as current.
+
+Destructive and sharing actions
+Ask for explicit confirmation before:
+
+kemory_delete_memory
+Promoting private or narrowly scoped memory into a wider/shared namespace
+Storing unusually sensitive information
+Use kemory_check_access before an uncertain read, write, delete, or promotion. Never infer permissions from namespace names alone.
+
+End-of-task behavior
+At the end of a substantial task:
+
+Identify durable decisions, preferences, constraints, corrections, and unresolved questions.
+Store only the items that will improve future sessions.
+Use kemory_consolidate_session when the session contains multiple durable outcomes worth preserving.
+Avoid filling Kemory with conversational summaries that have no future value.
+Briefly mention meaningful memories written, but do not produce a long memory-operation log unless requested.
+Output quality rules
+When using Kemory context:
+
+Distinguish confirmed facts from tentative memories.
+Prefer current repository evidence and direct user instructions over older memories.
+Mention conflicts or stale information instead of hiding them.
+Preserve provenance for consequential claims.
+Do not invent a memory when retrieval returns nothing.
+If evidence is insufficient, say so and ask a focused question.
+Use memory to reduce repeated questions, not to override the user.
